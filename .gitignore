@@ -14,4 +14,5 @@ activate/
 wheelhouse/
 uv.lock
 .DS_Store
-*.c
+src/kivy_thor/**/*.c
+src/kivy_thor/**/*.h
