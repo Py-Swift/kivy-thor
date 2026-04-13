@@ -27,7 +27,6 @@ if sys.platform == "darwin":
         _EGL.eglGetCurrentContext.restype = ctypes.c_size_t
         _EGL.eglGetCurrentDisplay.restype = ctypes.c_size_t
         _EGL.eglGetCurrentSurface.restype = ctypes.c_size_t
-_EGL_DRAW = 0x3059
 
 
 class ThorFbo:
@@ -35,13 +34,12 @@ class ThorFbo:
     def __cinit__(self):
         self.fbo = Fbo()
         self.gl_canvas = GlCanvas()
+        self.fbo_rect = Rectangle() # type: ignore
 
     def __init__(self, size=(1024, 1024), on_ready=None, **kwargs):
         self._on_ready = on_ready
-        self.fbo.size = size
-        
-        self.fbo_rect = Rectangle(texture=self.fbo.texture) # type: ignore
         super().__init__(**kwargs)
+        self.fbo.size = size
         self.fbo_rect.size = size
         self.fbo_rect.texture = self.fbo.texture
         self.add(self.fbo)
@@ -64,7 +62,7 @@ class ThorFbo:
         if sys.platform == "darwin":
             context = _EGL.eglGetCurrentContext()
             display = _EGL.eglGetCurrentDisplay()
-            surface = _EGL.eglGetCurrentSurface(_EGL_DRAW)
+            surface = _EGL.eglGetCurrentSurface(0x3059)
         # target() ends with glBindFramebuffer(Kivy's FBO) as a side-effect,
         # which corrupts Kivy's GL state — window.clear() then clears the FBO
         # texture instead of the screen.  Save and restore the binding.
@@ -98,4 +96,4 @@ class ThorFbo:
         self._bind_target()
         self.fbo_rect.size = size
         self.fbo_rect.texture = self.fbo.texture
-        print(f"[ThorFbo] set_size={size} new_buffer_id={self.fbo.buffer_id} texture_size={self.fbo.texture.size}")
+        #print(f"[ThorFbo] set_size={size} new_buffer_id={self.fbo.buffer_id} texture_size={self.fbo.texture.size}")

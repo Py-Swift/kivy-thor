@@ -24,11 +24,9 @@ class ThorScreen(Screen):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.__children = []
-        #self.canvas = ThorCanvas()
+        self.canvas = ThorCanvas()
         with self.canvas:
             self.thor_fbo = ThorFbo(size=self.size)
-            #Callback(self.on_callback)
-        
         
         self.gl_canvas = self.thor_fbo.gl_canvas
 
