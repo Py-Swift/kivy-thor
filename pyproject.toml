@@ -1,0 +1,38 @@
+[project]
+name = "kivy-thor"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+authors = [
+    { name = "psychowasp", email = "psychowaspx@gmail.com" }
+]
+requires-python = ">=3.13"
+dependencies = [
+    "kivy>=3.0.0.dev0",
+    "thorvg-cython>=0.0.4",
+]
+
+[project.scripts]
+kivy-thor = "kivy_thor:main"
+
+[build-system]
+requires = ["setuptools>=68", "Cython>=3.0", "kivy>=3.0.0.dev0", "thorvg-cython>=0.0.4"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+kivy_thor = ["*.pyi", "*.pxd"]
+
+[dependency-groups]
+dev = [
+    "cython>=3.0",
+]
+
+
+[tool.uv]
+find-links = ["../wheelhouse"]
+
+[tool.uv.pip]
+find-links = ["../wheelhouse"]
