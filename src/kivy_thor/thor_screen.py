@@ -29,6 +29,7 @@ class ThorScreen(Screen):
             self.thor_fbo = ThorFbo(size=self.size)
         
         self.gl_canvas = self.thor_fbo.gl_canvas
+        print(self.gl_canvas)
         print(f"[ThorScreen] initialized with size={self.size} thor_fbo={self.thor_fbo} gl_canvas={self.gl_canvas}")
 
     def on_callback(self, instruction):
