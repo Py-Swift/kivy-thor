@@ -27,20 +27,23 @@ if sys.platform == "darwin":
         _EGL.eglGetCurrentContext.restype = ctypes.c_size_t
         _EGL.eglGetCurrentDisplay.restype = ctypes.c_size_t
         _EGL.eglGetCurrentSurface.restype = ctypes.c_size_t
+_EGL_DRAW = 0x3059
+_dbg_target = False
+_dbg_refresh = False
 
-_dbg_refresh_done = False
 
 class ThorFbo:
 
     def __cinit__(self):
         self.fbo = Fbo()
         self.gl_canvas = GlCanvas()
-        self.fbo_rect = Rectangle() # type: ignore
 
     def __init__(self, size=(1024, 1024), on_ready=None, **kwargs):
         self._on_ready = on_ready
-        super().__init__(**kwargs)
         self.fbo.size = size
+        
+        self.fbo_rect = Rectangle(texture=self.fbo.texture) # type: ignore
+        super().__init__(**kwargs)
         self.fbo_rect.size = size
         self.fbo_rect.texture = self.fbo.texture
         self.add(self.fbo)
@@ -63,7 +66,7 @@ class ThorFbo:
         if sys.platform == "darwin":
             context = _EGL.eglGetCurrentContext()
             display = _EGL.eglGetCurrentDisplay()
-            surface = _EGL.eglGetCurrentSurface(0x3059)
+            surface = _EGL.eglGetCurrentSurface(_EGL_DRAW)
         # target() ends with glBindFramebuffer(Kivy's FBO) as a side-effect,
         # which corrupts Kivy's GL state — window.clear() then clears the FBO
         # texture instead of the screen.  Save and restore the binding.
@@ -75,19 +78,22 @@ class ThorFbo:
             cython.cast(cython.uint, self.fbo._height),
             2,
         )
-        print(f"[ThorFbo] target: result={result} display={display} surface={surface} context={context} fbo={self.fbo.buffer_id} size=({self.fbo._width},{self.fbo._height})")
+        global _dbg_target
+        if not _dbg_target:
+            _dbg_target = True
+            print(f"[ThorFbo] target() => {result}  display={display:#x} surface={surface:#x} context={context:#x} fbo_id={self.fbo.buffer_id} size=({self.fbo._width},{self.fbo._height})")
         glBindFramebuffer(GL_FRAMEBUFFER, saved_fbo)
 
     def refresh(self, clear: bool = True) -> None:
-        global _dbg_refresh_done
         self.gl_canvas.update()
         self.gl_canvas.draw(clear)
         saved_fbo = int(glGetIntegerv(GL_FRAMEBUFFER_BINDING)[0])
         vp = glGetIntegerv(GL_VIEWPORT)
         result = self.gl_canvas.sync()
-        #if not _dbg_refresh_done:
-            #_dbg_refresh_done = True
-        print(f"[ThorFbo] refresh: sync={result} fbo_bound={saved_fbo} buffer_id={self.fbo.buffer_id} size={self.fbo.size} vp={list(vp)}")
+        global _dbg_refresh
+        if not _dbg_refresh:
+            _dbg_refresh = True
+            print(f"[ThorFbo] refresh: sync={result} saved_fbo={saved_fbo} buffer_id={self.fbo.buffer_id} tex={self.fbo.texture.size} vp={list(vp)}")
         glBindFramebuffer(GL_FRAMEBUFFER, saved_fbo)
         glViewport(int(vp[0]), int(vp[1]), int(vp[2]), int(vp[3]))
         glDisable(GL_DEPTH_TEST)

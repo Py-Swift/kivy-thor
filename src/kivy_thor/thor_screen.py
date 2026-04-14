@@ -4,6 +4,8 @@ from thorvg_cython import GlCanvas
 from kivy.graphics import Callback
 from kivy.graphics import Canvas as KivyCanvas
 
+from kivy.graphics import Color, Rectangle
+
 class ThorCanvas(KivyCanvas):
     fbo: ThorFbo
     def __init__(self, **kwargs):
@@ -27,6 +29,7 @@ class ThorScreen(Screen):
         #self.canvas = ThorCanvas()
         with self.canvas:
             self.thor_fbo = ThorFbo(size=self.size)
+            
         
         self.gl_canvas = self.thor_fbo.gl_canvas
         print(self.gl_canvas)
