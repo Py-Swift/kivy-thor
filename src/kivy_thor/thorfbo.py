@@ -85,9 +85,9 @@ class ThorFbo:
         saved_fbo = int(glGetIntegerv(GL_FRAMEBUFFER_BINDING)[0])
         vp = glGetIntegerv(GL_VIEWPORT)
         result = self.gl_canvas.sync()
-        if not _dbg_refresh_done:
-            _dbg_refresh_done = True
-            print(f"[ThorFbo] refresh: sync={result} fbo_bound={saved_fbo} buffer_id={self.fbo.buffer_id} size={self.fbo.size} vp={list(vp)}")
+        #if not _dbg_refresh_done:
+            #_dbg_refresh_done = True
+        print(f"[ThorFbo] refresh: sync={result} fbo_bound={saved_fbo} buffer_id={self.fbo.buffer_id} size={self.fbo.size} vp={list(vp)}")
         glBindFramebuffer(GL_FRAMEBUFFER, saved_fbo)
         glViewport(int(vp[0]), int(vp[1]), int(vp[2]), int(vp[3]))
         glDisable(GL_DEPTH_TEST)
