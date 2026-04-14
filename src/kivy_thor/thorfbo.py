@@ -96,4 +96,4 @@ class ThorFbo:
         self._bind_target()
         self.fbo_rect.size = size
         self.fbo_rect.texture = self.fbo.texture
-        #print(f"[ThorFbo] set_size={size} new_buffer_id={self.fbo.buffer_id} texture_size={self.fbo.texture.size}")
+        print(f"[ThorFbo] set_size={size} new_buffer_id={self.fbo.buffer_id} texture_size={self.fbo.texture.size}")

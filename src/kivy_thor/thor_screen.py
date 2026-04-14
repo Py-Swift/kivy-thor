@@ -24,11 +24,12 @@ class ThorScreen(Screen):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.__children = []
-        self.canvas = ThorCanvas()
+        #self.canvas = ThorCanvas()
         with self.canvas:
             self.thor_fbo = ThorFbo(size=self.size)
         
         self.gl_canvas = self.thor_fbo.gl_canvas
+        print(f"[ThorScreen] initialized with size={self.size} thor_fbo={self.thor_fbo} gl_canvas={self.gl_canvas}")
 
     def on_callback(self, instruction):
         print("Callback called with instruction:", instruction, self)

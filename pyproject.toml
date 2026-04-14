@@ -31,8 +31,8 @@ dev = [
 ]
 
 
-[tool.uv]
-find-links = ["../wheelhouse"]
+# [tool.uv]
+# find-links = ["./wheelhouse"]
 
-[tool.uv.pip]
-find-links = ["../wheelhouse"]
+# [tool.uv.pip]
+# find-links = ["./wheelhouse"]
