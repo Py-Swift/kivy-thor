@@ -28,6 +28,7 @@ if sys.platform == "darwin":
         _EGL.eglGetCurrentDisplay.restype = ctypes.c_size_t
         _EGL.eglGetCurrentSurface.restype = ctypes.c_size_t
 
+_dbg_refresh_done = False
 
 class ThorFbo:
 
@@ -78,13 +79,14 @@ class ThorFbo:
         glBindFramebuffer(GL_FRAMEBUFFER, saved_fbo)
 
     def refresh(self, clear: bool = True) -> None:
+        global _dbg_refresh_done
         self.gl_canvas.update()
         self.gl_canvas.draw(clear)
         saved_fbo = int(glGetIntegerv(GL_FRAMEBUFFER_BINDING)[0])
         vp = glGetIntegerv(GL_VIEWPORT)
         result = self.gl_canvas.sync()
-        if not hasattr(self, '_dbg_refresh'):
-            self._dbg_refresh = True
+        if not _dbg_refresh_done:
+            _dbg_refresh_done = True
             print(f"[ThorFbo] refresh: sync={result} fbo_bound={saved_fbo} buffer_id={self.fbo.buffer_id} size={self.fbo.size} vp={list(vp)}")
         glBindFramebuffer(GL_FRAMEBUFFER, saved_fbo)
         glViewport(int(vp[0]), int(vp[1]), int(vp[2]), int(vp[3]))
