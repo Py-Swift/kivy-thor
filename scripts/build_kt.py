@@ -46,6 +46,7 @@ class Paths:
     kivy_deps:           Path
     ios_kivy_deps:       Path
     angle_lib_dir:       Path
+    angle_include_dir:   Path
     thorvg_capi_include: Path
 
     @property
@@ -139,14 +140,14 @@ class Builder:
 
 class Kivy(Builder):
     name = "kivy"
-    wheel_prefix = "Kivy-"
+    wheel_prefix = "kivy-"
 
     def build_macos(self) -> None:
         if self._has_wheel(Platform.MACOS):
             log("Kivy macOS wheel already exists, skipping (delete it to rebuild).")
             return
         log("Building Kivy macOS dependencies...")
-        run(["./tools/build_macos_dependencies.sh"], cwd=self.p.kivy_src)
+        run(["bash", "./tools/build_macos_dependencies.sh"], cwd=self.p.kivy_src)
 
         log("Building Kivy macOS wheel...")
         repair_path = self.p.repair_library_path
@@ -170,7 +171,7 @@ class Kivy(Builder):
             log("Kivy iOS wheels already exist, skipping (delete them to rebuild).")
             return
         log("Building Kivy iOS dependencies...")
-        run(["./tools/build_ios_dependencies.sh"], cwd=self.p.kivy_src)
+        run(["bash", "./tools/build_ios_dependencies.sh"], cwd=self.p.kivy_src)
 
         log("Building Kivy iOS wheels...")
         _cibuildwheel(self.p.kivy_src, Platform.IOS, self.p, archs=IOS_ARCHS, env={
@@ -199,15 +200,16 @@ class ThorGPU(Builder):
         log("Building thorvg-cython macOS wheel (GPU/ANGLE)...")
         toolchain = xcode_toolchain_bin()
 
+        tc = self.p.thorvg_cython_src
         before_all = (
             f"export PATH={toolchain}:$PATH && "
-            "python3 {project}/tools/build_thorvg.py macos "
-            "--thorvg-root={project}/thorvg "
+            f"python3 {tc}/tools/build_thorvg.py macos "
+            f"--thorvg-root={tc}/thorvg "
             f"--version={self.THORVG_VERSION} --gpu=angle"
         )
         before_build = (
             "install_name_tool -id @rpath/libthorvg-1.dylib "
-            "{project}/thorvg/output/macos_fat/libthorvg-1.dylib"
+            f"{tc}/thorvg/output/macos_fat/libthorvg-1.dylib"
         )
         repair = (
             "delocate-wheel --require-archs {delocate_archs} "
@@ -228,6 +230,7 @@ class ThorGPU(Builder):
             "CIBW_BEFORE_ALL_MACOS": before_all,
             "CIBW_BEFORE_BUILD_MACOS": before_build,
             "CIBW_REPAIR_WHEEL_COMMAND_MACOS": repair,
+            "CIBW_TEST_COMMAND": "",
             "CIBW_ENVIRONMENT_MACOS": cibw_env,
         })
         log("thorvg-cython macOS done.")
@@ -279,10 +282,21 @@ class KivyThor(Builder):
             "MACOSX_DEPLOYMENT_TARGET=11.0",
             f"PIP_FIND_LINKS={self.p.wheelhouse}",
             f"THORVG_CAPI_INCLUDE={self.p.thorvg_capi_include}",
+            f"ANGLE_LIB_DIR={self.p.angle_lib_dir}",
+            f"ANGLE_INCLUDE_DIR={self.p.angle_include_dir}",
         ])
+        repair = (
+            f"DYLD_LIBRARY_PATH={self.p.angle_lib_dir} "
+            "delocate-listdeps {wheel} && "
+            f"DYLD_LIBRARY_PATH={self.p.angle_lib_dir} "
+            "delocate-wheel --require-archs {delocate_archs} "
+            "--exclude libEGL --exclude libGLESv2 "
+            "-w {dest_dir} {wheel}"
+        )
         _cibuildwheel(self.p.kivy_thor_src, Platform.MACOS, self.p, env={
             "PIP_FIND_LINKS": str(self.p.wheelhouse),
             "CIBW_ENVIRONMENT_MACOS": cibw_env,
+            "CIBW_REPAIR_WHEEL_COMMAND_MACOS": repair,
         })
         log("kivy-thor macOS done.")
 
@@ -291,6 +305,8 @@ class KivyThor(Builder):
         cibw_env = " ".join([
             f"PIP_FIND_LINKS={self.p.wheelhouse}",
             f"THORVG_CAPI_INCLUDE={self.p.thorvg_capi_include}",
+            f"ANGLE_LIB_DIR={self.p.angle_lib_dir}",
+            f"ANGLE_INCLUDE_DIR={self.p.angle_include_dir}",
         ])
         _cibuildwheel(self.p.kivy_thor_src, Platform.IOS, self.p, archs=IOS_ARCHS, env={
             "PIP_FIND_LINKS": str(self.p.wheelhouse),
@@ -322,6 +338,9 @@ def _clone_if_missing(dest: Path, url: str) -> None:
     if not dest.exists():
         log(f"Cloning {url} into {dest}")
         subprocess.run(["git", "clone", url, str(dest)], check=True)
+        # Make shell scripts executable (git may lose +x on some platforms)
+        for sh in dest.rglob("*.sh"):
+            sh.chmod(sh.stat().st_mode | 0o111)
 
 
 def _discover_paths() -> Paths:
@@ -352,6 +371,7 @@ def _discover_paths() -> Paths:
         kivy_deps         = kivy_deps,
         ios_kivy_deps     = p("IOS_KIVY_DEPS_ROOT",  kivy_src / "ios-kivy-dependencies"),
         angle_lib_dir     = p("ANGLE_LIB_DIR",       kivy_deps / "dist" / "lib"),
+        angle_include_dir = p("ANGLE_INCLUDE_DIR",   kivy_deps / "dist" / "include"),
         thorvg_capi_include = p("THORVG_CAPI_INCLUDE", tc_src / "thorvg" / "src" / "bindings" / "capi"),
     )
 
