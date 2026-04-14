@@ -74,6 +74,7 @@ class ThorFbo:
             cython.cast(cython.uint, self.fbo._height),
             2,
         )
+        print(f"[ThorFbo] target: result={result} display={display} surface={surface} context={context} fbo={self.fbo.buffer_id} size=({self.fbo._width},{self.fbo._height})")
         glBindFramebuffer(GL_FRAMEBUFFER, saved_fbo)
 
     def refresh(self, clear: bool = True) -> None:
@@ -81,7 +82,10 @@ class ThorFbo:
         self.gl_canvas.draw(clear)
         saved_fbo = int(glGetIntegerv(GL_FRAMEBUFFER_BINDING)[0])
         vp = glGetIntegerv(GL_VIEWPORT)
-        self.gl_canvas.sync()
+        result = self.gl_canvas.sync()
+        if not hasattr(self, '_dbg_refresh'):
+            self._dbg_refresh = True
+            print(f"[ThorFbo] refresh: sync={result} fbo_bound={saved_fbo} buffer_id={self.fbo.buffer_id} size={self.fbo.size} vp={list(vp)}")
         glBindFramebuffer(GL_FRAMEBUFFER, saved_fbo)
         glViewport(int(vp[0]), int(vp[1]), int(vp[2]), int(vp[3]))
         glDisable(GL_DEPTH_TEST)
