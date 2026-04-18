@@ -66,19 +66,25 @@ _c_include_dirs = kivy.get_includes() + [THORVG_CAPI_INCLUDE]
 setup(
     ext_modules=cythonize(
         [
+            # Extension(
+            #     "kivy_thor.thorfbo",
+            #     sources=["src/kivy_thor/thorfbo.py"],
+            #     include_dirs=_c_include_dirs,
+            #     extra_compile_args=extra_compile_args,
+            # ),
             Extension(
-                "kivy_thor.thorfbo",
-                sources=["src/kivy_thor/thorfbo.py"],
-                include_dirs=_c_include_dirs,
-                extra_compile_args=extra_compile_args,
-            ),
-            Extension(
-                "kivy_thor.tfbo",
-                sources=["src/kivy_thor/tfbo.pyx"],
+                "kivy_thor.thor_fbo",
+                sources=["src/kivy_thor/thor_fbo.pyx"],
                 include_dirs=_c_include_dirs + tfbo_include_dirs,
                 library_dirs=tfbo_library_dirs,
                 extra_compile_args=extra_compile_args,
                 extra_link_args=tfbo_extra_link_args,
+            ),
+            Extension(
+                "kivy_thor.thorlayer",
+                sources=["src/kivy_thor/thorlayer.pyx"],
+                include_dirs=_c_include_dirs,
+                extra_compile_args=extra_compile_args,
             ),
         ],
         include_path=_cython_include_path,

@@ -7,7 +7,7 @@ from thorvg_cython.gl_canvas cimport GlCanvas
 # experiment with custom version Fbo which maybe can help with the code we hat to add to fix opengl viewport in thorfbo.py.
 cdef class ThorFbo(RenderContext):
 
-    cdef public object gl_canvas
+    cdef public GlCanvas gl_canvas
 
     cdef int _width
     cdef int _height
@@ -31,6 +31,7 @@ cdef class ThorFbo(RenderContext):
 
     cdef void create_fbo(self)
     cdef void delete_fbo(self)
+    cdef void _dealloc_gl(self)
     cdef void _bind_gl_canvas(self)
     cdef int apply(self) except -1
     cdef void raise_exception(self, str message, int status=?)

@@ -38,12 +38,10 @@ from kivy.graphics.cgl cimport (
 from kivy.graphics.instructions cimport RenderContext
 from kivy.graphics.texture cimport Texture
 from kivy.graphics.transformation cimport Matrix as KivyMatrix
-from kivy.graphics.context cimport get_context
 from kivy.graphics.stencil_instructions cimport (
     get_stencil_state, restore_stencil_state, reset_stencil_state,
 )
 
-from kivy.graphics.texture import Texture as PyTexture
 from kivy.graphics.opengl import (
     glDisable, glEnable, glBlendFuncSeparate,
     GL_DEPTH_TEST, GL_BLEND,
@@ -53,7 +51,6 @@ from kivy.weakmethod import WeakMethod
 from kivy.utils import platform
 
 from thorvg_cython.gl_canvas cimport GlCanvas
-from thorvg_cython.gl_canvas import GlCanvas as PyGlCanvas
 
 # -- EGL declarations ---------------------------------------------------------
 cdef extern from "EGL/egl.h" nogil:
@@ -97,10 +94,12 @@ cdef class ThorFbo(RenderContext):
         tfbo.flag_update()
     """
 
+    def __cinit__(self, GlCanvas gl_canvas):
+        self.gl_canvas = gl_canvas
+
     def __init__(self, *args, size=(1024, 1024), clear_color=(0, 0, 0, 0),
                  push_viewport=True, with_depthbuffer=False,
                  with_stencilbuffer=False, texture=None, **kwargs):
-        get_context().register_fbo(self)
         RenderContext.__init__(self, *args, **kwargs)
 
         self.buffer_id = 0
@@ -118,13 +117,11 @@ cdef class ThorFbo(RenderContext):
         if _IS_GLES and self._depthbuffer_attached:
             self._stencilbuffer_attached = 1
 
-        self.gl_canvas = PyGlCanvas()
-
         self.create_fbo()
         self._bind_gl_canvas()
 
     def __dealloc__(self):
-        get_context().dealloc_fbo(self)
+        self._dealloc_gl()
 
     # -- GL framebuffer management --------------------------------------------
 
@@ -146,11 +143,21 @@ cdef class ThorFbo(RenderContext):
             message = '{}: {} ({})'.format(message, self.resolve_status(status), status)
         raise Exception(message)
 
+    cdef void _dealloc_gl(self):
+        cdef GLuint fb = self.buffer_id
+        cdef GLuint rb
+        if fb != 0:
+            cgl.glDeleteFramebuffers(1, &fb)
+            self.buffer_id = 0
+        rb = self.depthbuffer_id or self.stencilbuffer_id
+        if rb != 0:
+            cgl.glDeleteRenderbuffers(1, &rb)
+            self.depthbuffer_id = 0
+            self.stencilbuffer_id = 0
+
     cdef void delete_fbo(self):
         self._texture = None
-        get_context().dealloc_fbo(self)
-        self.buffer_id = 0
-        self.depthbuffer_id = 0
+        self._dealloc_gl()
 
     cdef void create_fbo(self):
         cdef GLuint f_id = 0
@@ -160,7 +167,7 @@ cdef class ThorFbo(RenderContext):
         cdef int do_clear = 0
 
         if self._texture is None:
-            self._texture = PyTexture.create(size=(self._width, self._height))
+            self._texture = Texture.create(size=(self._width, self._height))
             do_clear = 1
 
         self._texture.bind()
@@ -309,29 +316,18 @@ cdef class ThorFbo(RenderContext):
     # -- core render integration -----------------------------------------------
 
     cdef int apply(self) except -1:
-        """Called by Kivy's render pipeline when the instruction tree is dirty.
+        """Called by Kivy's render pipeline during canvas traversal.
 
-        ThorVG update+draw+sync happens *inside* the normal Kivy draw cycle,
-        while we already have the FBO bound.
+        ThorVG update+draw+sync runs every time Kivy redraws the canvas,
+        so callers only need canvas.ask_update() -- no separate refresh().
         """
-        if self.flags & GI_NEEDS_UPDATE:
-            self.bind()
-            # Let ThorVG render into our FBO
-            self.gl_canvas.update()
-            self.gl_canvas.draw(True)
-            self.gl_canvas.sync()
-            # Run any Kivy children (Color, Rectangle, etc.) if present
-            RenderContext.apply(self)
-            self.release()
-            self.flag_update_done()
+        self.bind()
+        self.gl_canvas.update()
+        self.gl_canvas.draw(True)
+        self.gl_canvas.sync()
+        RenderContext.apply(self)
+        self.release()
         return 0
-
-    def refresh(self):
-        """Manual trigger -- just flags the instruction as dirty.
-
-        The actual GL work happens in apply() on the next Kivy draw.
-        """
-        self.flag_update()
 
     # -- reload after GL context loss ------------------------------------------
 

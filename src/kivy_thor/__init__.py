@@ -1,3 +1,3 @@
 from .thor_screen import ThorScreen
-from .thorfbo import ThorFbo
+from .thor_fbo import ThorFbo
 from .thorvg_egl import thorvg_load_egl

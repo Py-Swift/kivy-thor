@@ -291,7 +291,9 @@ class KivyThor(Builder):
             f"DYLD_LIBRARY_PATH={self.p.angle_lib_dir} "
             "delocate-wheel --require-archs {delocate_archs} "
             "--exclude libEGL --exclude libGLESv2 "
-            "-w {dest_dir} {wheel}"
+            "-w {dest_dir} {wheel} && "
+            "for f in {dest_dir}/*.whl; do "
+            f"python {self.p.kivy_thor_src}/scripts/build_kt.py _fix-egl-rpath \"$f\"; done"
         )
         _cibuildwheel(self.p.kivy_thor_src, Platform.MACOS, self.p, env={
             "PIP_FIND_LINKS": str(self.p.wheelhouse),
@@ -376,10 +378,51 @@ def _discover_paths() -> Paths:
     )
 
 
+def _fix_egl_rpath(whl_path: str) -> None:
+    """Rewrite @rpath/libEGL.dylib references in a wheel to use @loader_path.
+
+    After delocate excludes libEGL/libGLESv2, the .so files still reference
+    them via @rpath which won't resolve at runtime.  We change the install
+    name to @loader_path/../kivy/.dylibs/libEGL.dylib so it resolves
+    relative to the installed .so in site-packages.
+    """
+    import glob, subprocess, tempfile, zipfile, shutil
+    tmp = tempfile.mkdtemp()
+    try:
+        with zipfile.ZipFile(whl_path, "r") as zf:
+            zf.extractall(tmp)
+        changed = False
+        for so in glob.glob(os.path.join(tmp, "kivy_thor", "*.so")):
+            otool = subprocess.run(["otool", "-L", so], capture_output=True, text=True)
+            if "@rpath/libEGL.dylib" in otool.stdout:
+                subprocess.run([
+                    "install_name_tool", "-change",
+                    "@rpath/libEGL.dylib",
+                    "@loader_path/../kivy/.dylibs/libEGL.dylib",
+                    so,
+                ], check=True)
+                changed = True
+                log(f"  Fixed EGL rpath in {os.path.basename(so)}")
+        if changed:
+            os.remove(whl_path)
+            with zipfile.ZipFile(whl_path, "w", zipfile.ZIP_DEFLATED) as zf:
+                for root, _dirs, files in os.walk(tmp):
+                    for f in files:
+                        full = os.path.join(root, f)
+                        zf.write(full, os.path.relpath(full, tmp))
+            log(f"  Repacked {os.path.basename(whl_path)}")
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)
+
+
 def main() -> None:
     # Hidden callback used by cibuildwheel's CIBW_REPAIR_WHEEL_COMMAND
     if len(sys.argv) >= 2 and sys.argv[1] == "_repair-thorgpu-wheel":
         ThorGPU.repair_wheel(sys.argv[2])
+        return
+
+    if len(sys.argv) >= 3 and sys.argv[1] == "_fix-egl-rpath":
+        _fix_egl_rpath(sys.argv[2])
         return
 
     parser = argparse.ArgumentParser(
